@@ -75,7 +75,9 @@ def archive_email(yga, reattach=True, save=True, html=False):
 			         print "ERROR: Read timeout, retrying"
 			         time.sleep(HOLDOFF)
 
-        eml = email.message_from_string(raw_json['rawEmail'])
+        # rawEmail needs to be explicitly converted to UTF-8:
+	as_utf8 = raw_json['rawEmail'].encode('utf8')
+	eml = email.message_from_string(as_utf8)
 
         if (save or reattach) and message['hasAttachments']:
             atts = {}
