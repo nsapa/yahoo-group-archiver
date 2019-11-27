@@ -41,7 +41,7 @@ class AuthenticationError(Unrecoverable):
     pass
 
 
-class NotAuthenticated(AuthenticationError):
+class NotAuthenticated(YGAException):
     """307, with Yahoo errorCode 1101, user is not logged in and attempting to read content requiring authentication."""
     pass
 
@@ -81,6 +81,8 @@ class YahooGroupsAPI:
     s = None
     ww = None
     http_context = dummy_contextmanager
+    authenticationFailures = 0
+
 
     def __init__(self, group, cookie_jar=None, headers={}, min_delay=0, retries=15):
         self.s = requests.Session()
@@ -171,8 +173,15 @@ class YahooGroupsAPI:
                     r = self.s.get(uri, params=opts, verify=VERIFY_HTTPS, allow_redirects=False, timeout=15)
 
                     code = r.status_code
+                    # 307 authentication errors have frequently proven to be transient, but enough in a row might indicate something like an expired cookie.
                     if code == 307:
-                        raise Recoverable() # NotAuthenticated()
+                        self.authenticationFailures += 1
+                        if (self.authenticationFailures > 50):
+                            self.logger.debug("Terminating due to %d consecutive authentication failures.", self.authenticationFailures)
+                            raise Unrecoverable()
+                        else:
+                            self.logger.debug("There have been %d consecutive authentication failures. Retrying.", self.authenticationFailures)                       
+                            raise NotAuthenticated()
                     elif code == 401 or code == 403:
                         raise Unauthorized()
                     elif code == 404:
@@ -183,8 +192,10 @@ class YahooGroupsAPI:
                         # TODO: Test ygError response?
                         raise Recoverable()
 
+                    # Reset authentical failure count upon successful json download.
+                    self.authenticationFailures = 0
                     return r.json()['ygData']
-                except (ConnectionError, Timeout, Recoverable, BadSize) as e:
+                except (ConnectionError, Timeout, Recoverable, BadSize, NotAuthenticated) as e:
                     self.logger.info("API query failed for '%s': %s", uri, e)
                     self.logger.debug("Exception detail:", exc_info=e)
 
