@@ -104,7 +104,8 @@ def archive_message_content(yga, id, status="", skipHTML=False, skipRaw=False):
                 raw_json = yga.messages(id, 'raw')
                 with open(fname, 'wb') as f:
                     json.dump(raw_json, codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
-                set_mtime(fname, int(raw_json['postDate']))
+                if 'postDate' in raw_json:
+                    set_mtime(fname, int(raw_json['postDate']))
             except Exception:
                 logger.exception("Raw grab failed for message %d", id)
 
@@ -116,12 +117,14 @@ def archive_message_content(yga, id, status="", skipHTML=False, skipRaw=False):
                 html_json = yga.messages(id)
                 with open(fname, 'wb') as f:
                     json.dump(html_json, codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
-                set_mtime(fname, int(html_json['postDate']))
+                if 'postDate' in html_json:
+                    set_mtime(fname, int(html_json['postDate']))
 
                 if 'attachmentsInfo' in html_json and len(html_json['attachmentsInfo']) > 0:
                     with Mkchdir("%d_attachments" % id):
                         process_single_attachment(yga, html_json['attachmentsInfo'])
-                    set_mtime(sanitise_folder_name("%d_attachments" % id), int(html_json['postDate']))
+                    if 'postDate' in html_json:
+                        set_mtime(sanitise_folder_name("%d_attachments" % id), int(html_json['postDate']))
             except Exception:
                 logger.exception("HTML grab failed for message %d", id)
 
@@ -649,6 +652,7 @@ def archive_calendar(yga):
             calContentRaw = yga.download_file(calURL)
         except requests.exception.HTTPError:
             logger.error("Unrecoverable error getting events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
+            return
 
         calContent = json.loads(calContentRaw)
         if calContent['events']['count'] > 0:
@@ -921,7 +925,8 @@ if __name__ == "__main__":
                     help='Output WARC file of raw network requests. [Requires warcio package installed]')
 
     p.add_argument('-v', '--verbose', action='store_true')
-    p.add_argument('--colour', '--color', action='store_true', help='Colour log output to terminal')
+    p.add_argument('--colour', '--color', action='store_true',
+                   help='Colour log output to terminal [Requires coloredlogs package installed]')
     p.add_argument('--delay', type=float, default=0.2, help='Minimum delay between requests (default 0.2s)')
 
     p.add_argument('group', type=str)
@@ -940,8 +945,7 @@ if __name__ == "__main__":
         try:
             import coloredlogs
         except ImportError as e:
-            print("Coloured logging output requires the 'coloredlogs' package to be installed.")
-            raise e
+            sys.exit("Error: Coloured logging output requires the 'coloredlogs' package to be installed.")
         coloredlogs.install(level=log_level, **log_format)
     else:
         log_stdout_handler = logging.StreamHandler(sys.stdout)
@@ -965,7 +969,7 @@ if __name__ == "__main__":
             args.polls = args.attachments = args.members = args.topics = args.raw = True
 
     with Mkchdir(args.group, sanitize=False):
-        log_file_handler = logging.FileHandler('archive.log','w','utf-8')
+        log_file_handler = logging.FileHandler('archive.log', 'a', 'utf-8')
         log_file_handler.setFormatter(log_formatter)
         root_logger.addHandler(log_file_handler)
 
