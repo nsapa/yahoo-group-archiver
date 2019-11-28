@@ -105,7 +105,7 @@ def test_unauthorized_error(yahoo_response):
 def test_not_authenticated_error(yahoo_response):
     r = yahoo_response('v1/groups/groupname/', status=307)
     yga = YahooGroupsAPI('groupname')
-    with raises(yahoogroupsapi.Recoverable):    # Temporary fix, replaced: yahoogroupsapi.NotAuthenticated
+    with raises(yahoogroupsapi.NotAuthenticated):
         yga.HackGroupInfo()
     assert len(r.calls) == 15
 
