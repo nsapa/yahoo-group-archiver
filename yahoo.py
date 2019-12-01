@@ -456,7 +456,10 @@ def archive_files(yga, subdir=None):
             if file_keep(new_name, ": %s" % (new_name,)) is False:
                 logger.info("Fetching file '%s' as '%s' (%d/%d)", name, new_name, n, sz)
                 with open(new_name, 'wb') as f:
-                    yga.download_file(path['downloadURL'], f)
+                    try:
+                        yga.download_file(path['downloadURL'], f)
+                    except:
+                        pass # Bad size exceptions can sometimes cause issues going from -f to -i.
                 set_mtime(new_name, path['createdTime'])
 
         elif path['type'] == 1:
