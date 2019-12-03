@@ -64,7 +64,7 @@ if not PYTHON:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20191121.02'
+VERSION = '20191123.00'
 USER_AGENT = 'ArchiveTeam'
 TRACKER_ID = 'yahoo-groups-api'
 # TRACKER_HOST = 'tracker.archiveteam.org'  #prod-env
@@ -202,22 +202,27 @@ def stats_id_function(item):
 
 class YgaArgs(object):
     def realize(self, item):
+        http_client = httpclient.HTTPClient()
+
         yga_args = [
             PYTHON,
             '../../../yahoo.py',
-             '-a',
-             '-t',
-             '-w'
+            '-w'
         ]
 
         item_name = item['item_name']
         assert ':' in item_name
-        item_type, item_value = item_name.split(':', 1)
+        item_fields = item_name.split(':')
+        item_type, item_value = item_fields[0:2]
 
         item['item_type'] = item_type
         item['item_value'] = item_value
 
-        http_client = httpclient.HTTPClient()
+        if len(item_fields) > 2:
+            for flag in item_fields[2].split('-'):
+                yga_args.append('-' + flag)
+        else:
+            yga_args.extend(['-a', '-t'])
 
         if item_type == 'group':
             yga_args.append(item_value)
@@ -283,7 +288,7 @@ project = Project(
 
 pipeline = Pipeline(
     CheckIP(),
-    GetItemFromTracker('http://%s/%s' % (TRACKER_HOST, TRACKER_ID), downloader, VERSION),
+    GetItemFromTracker('http://%s/%s' % (TRACKER_HOST, TRACKER_ID), downloader, VERSION),  # noqa: F821
     PrepareDirectories(warc_prefix='yg-api'),
     YgaDownload(
         YgaArgs(),
@@ -298,7 +303,7 @@ pipeline = Pipeline(
     ),
     MoveFiles(),
     PrepareStatsForTracker(
-        defaults={'downloader': downloader, 'version': VERSION},
+        defaults={'downloader': downloader, 'version': VERSION},    # noqa: F821
         file_groups={
             'data': [
                 ItemInterpolation('%(data_dir)s/%(warc_file_base)s.warc.gz')  #TODO ?
@@ -310,7 +315,7 @@ pipeline = Pipeline(
                                       name='shared:rsync_threads', title='Rsync threads',
                                      description='The maximum number of concurrent uploads.'),
                     UploadWithTracker('http://%s/%s' % (TRACKER_HOST, TRACKER_ID),
-                                      downloader=downloader,
+                                      downloader=downloader,        # noqa: F821
                                       version=VERSION,
                                       files=ItemValue('files'),
                                       rsync_target_source_path=ItemInterpolation('%(data_dir)s/'),
