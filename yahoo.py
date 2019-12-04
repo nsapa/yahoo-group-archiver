@@ -650,7 +650,7 @@ def archive_calendar(yga):
         try:
             logger.info("Trying to get events between %s and %s", jsonStart, jsonEnd)
             calContentRaw = yga.download_file(calURL)
-        except requests.exception.HTTPError:
+        except requests.exceptions.HTTPError:
             logger.error("Unrecoverable error getting events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
 
         calContent = json.loads(calContentRaw)
