@@ -36,7 +36,7 @@ else:
 # WARC metadata params
 
 WARC_META_PARAMS = OrderedDict([('software', 'yahoo-group-archiver'),
-                                ('version','20191202.01'),
+                                ('version','20191202.02'),
                                 ('format', 'WARC File Format 1.0'),
                                 ('command-arguments', ' '.join(sys.argv))
                                 ])
@@ -653,7 +653,7 @@ def archive_calendar(yga):
         try:
             logger.info("Trying to get events between %s and %s", jsonStart, jsonEnd)
             calContentRaw = yga.download_file(calURL)
-        except requests.exception.HTTPError:
+        except requests.exceptions.HTTPError:
             logger.error("Unrecoverable error getting events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
             return
 
