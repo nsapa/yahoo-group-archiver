@@ -64,7 +64,7 @@ if not PYTHON:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20191206.01'
+VERSION = '20191206.02'
 USER_AGENT = 'ArchiveTeam'
 TRACKER_ID = 'yahoo-groups-api'
 # TRACKER_HOST = 'tracker.archiveteam.org'  #prod-env
@@ -234,7 +234,7 @@ class YgaArgs(object):
             cookies = json.loads(cookie_json.body.decode('utf-8', 'ignore'))
             yga_args.extend(['-cy', "%s" % cookies["cookie_Y"]])
             yga_args.extend(['-ct', "%s" % cookies["cookie_T"]])
-            yga_args.append(item_value)
+            yga_args.extend(['--', item_value])
         else:
             raise Exception('Unknown item')
 
