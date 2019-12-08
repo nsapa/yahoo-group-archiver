@@ -64,7 +64,7 @@ if not PYTHON:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20191206.03'
+VERSION = '20191208.02'
 USER_AGENT = 'ArchiveTeam'
 TRACKER_ID = 'yahoo-groups-api'
 # TRACKER_HOST = 'tracker.archiveteam.org'  #prod-env
@@ -290,6 +290,17 @@ pipeline = Pipeline(
     CheckIP(),
     GetItemFromTracker('http://%s/%s' % (TRACKER_HOST, TRACKER_ID), downloader, VERSION),  # noqa: F821
     PrepareDirectories(warc_prefix='yg-api'),
+    YgaDownload(
+        YgaArgs(),
+        max_tries=0,              # 2,          #changed
+        accept_on_exit_code=[0],  # [0, 4, 8],  #changed
+        env={
+            'item_dir': ItemValue('item_dir'),
+            'item_value': ItemValue('item_value'),
+            'item_type': ItemValue('item_type'),
+            'warc_file_base': ItemValue('warc_file_base'),
+        }
+    ),
     YgaDownload(
         YgaArgs(),
         max_tries=0,              # 2,          #changed

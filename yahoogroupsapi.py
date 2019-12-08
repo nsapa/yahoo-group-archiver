@@ -84,7 +84,7 @@ class YahooGroupsAPI:
     authenticationFailures = 0
 
 
-    def __init__(self, group, cookie_jar=None, headers={}, min_delay=0, retries=15):
+    def __init__(self, group, cookie_jar=None, headers={}, min_delay=0, retries=8):
         self.s = requests.Session()
         self.group = group
         self.min_delay = min_delay
