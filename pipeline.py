@@ -64,7 +64,7 @@ if not PYTHON:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20191202.02'
+VERSION = '20191208.04'
 USER_AGENT = 'ArchiveTeam'
 TRACKER_ID = 'yahoo-groups-api'
 # TRACKER_HOST = 'tracker.archiveteam.org'  #prod-env
@@ -222,7 +222,7 @@ class YgaArgs(object):
             for flag in item_fields[2].split('-'):
                 yga_args.append('-' + flag)
         else:
-            yga_args.extend(['-a', '-t'])
+            yga_args.extend(['-a', '-t', '-na'])
 
         if item_type == 'group':
             yga_args.append(item_value)
@@ -234,7 +234,7 @@ class YgaArgs(object):
             cookies = json.loads(cookie_json.body.decode('utf-8', 'ignore'))
             yga_args.extend(['-cy', "%s" % cookies["cookie_Y"]])
             yga_args.extend(['-ct', "%s" % cookies["cookie_T"]])
-            yga_args.append(item_value)
+            yga_args.extend(['--', item_value])
         else:
             raise Exception('Unknown item')
 
@@ -292,7 +292,18 @@ pipeline = Pipeline(
     PrepareDirectories(warc_prefix='yg-api'),
     YgaDownload(
         YgaArgs(),
-        max_tries=0,              # 2,          #changed
+        max_tries=1,              # 2,          #changed
+        accept_on_exit_code=range(-255,256),  # [0, 4, 8],  #changed
+        env={
+            'item_dir': ItemValue('item_dir'),
+            'item_value': ItemValue('item_value'),
+            'item_type': ItemValue('item_type'),
+            'warc_file_base': ItemValue('warc_file_base'),
+        }
+    ),
+    YgaDownload(
+        YgaArgs(),
+        max_tries=1,              # 2,          #changed
         accept_on_exit_code=[0],  # [0, 4, 8],  #changed
         env={
             'item_dir': ItemValue('item_dir'),
