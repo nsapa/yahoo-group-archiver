@@ -874,6 +874,7 @@ def file_keep(fname, type = ""):
         return False
 
     # If very small then pretend it is not there so that we can try again
+    # as examples seen of 0 byte and 64-69 byte files as a result of errors from Yahoo
     statinfo = os.stat(fname)
     
     if statinfo.st_size < 70:
