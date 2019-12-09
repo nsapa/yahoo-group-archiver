@@ -36,7 +36,7 @@ else:
 # WARC metadata params
 
 WARC_META_PARAMS = OrderedDict([('software', 'yahoo-group-archiver'),
-                                ('version','20191208.05'),
+                                ('version','20191209.01'),
                                 ('format', 'WARC File Format 1.0'),
                                 ('command-arguments', ' '.join(sys.argv))
                                 ])
@@ -442,17 +442,31 @@ def process_single_photo(photoinfo,f):
 
 def archive_files(yga, subdir=None):
     logger = logging.getLogger(name="archive_files")
-    try:
-        if subdir:
-            file_json = yga.files(sfpath=subdir)
-        else:
-            file_json = yga.files()
-    except Exception:
-        logger.error("Couldn't access Files functionality for this group")
-        return
 
-    with open('fileinfo.json', 'wb') as f:
-        json.dump(file_json['dirEntries'], codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
+    def archive_files_get_json(file_name,subdir=None):
+        """
+        Get the specified json file
+        Save to file and return contents
+        """
+        try:
+            if subdir:
+                file_json = yga.files(sfpath=subdir)
+            else:
+                file_json = yga.files()
+        except Exception:
+            logger.error("Couldn't access Files functionality for this group")
+            return
+
+        with open(file_name, 'wb') as f:
+            json.dump(file_json['dirEntries'], codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
+
+        return file_json
+
+    file_json = archive_files_get_json('fileinfo.json',subdir)
+
+    if file_json is None:
+        # Nothing found
+        return
 
     n = 0
     sz = len(file_json['dirEntries'])
@@ -463,13 +477,56 @@ def archive_files(yga, subdir=None):
             name = html_unescape(path['fileName'])
             new_name = sanitise_file_name("%d_%s" % (n, name))
             if file_keep(new_name, ": %s" % (new_name,)) is False:
+
+                # Uncomment the lines below to help testing by waiting until tokens have probably expired
+                #if n == 6:
+                #    logger.info("Going to sleep for testing")
+                #    time.sleep(80*60)
+
+                if file_age('fileinfo.json') > 60*45:
+                    # The list of files is old so the token embedded in the downloadURL cannot be trusted
+                    # so get a new one
+                    new_file_json = archive_files_get_json('fileinfo.json',subdir)
+
+                    if new_file_json is not None:
+                        new_n = 0
+                        new_sz = len(new_file_json['dirEntries'])
+                        
+                        if new_sz == sz:
+                            # Trust that the new list is the same as the old one if same size ...
+                            for new_path in new_file_json['dirEntries']:
+                                if file_json['dirEntries'][new_n]['fileName'] == new_path['fileName']:
+                                    # Name matches so very likely that this really is for the same file
+                                    if new_n == n-1:
+                                        # Reached the entry that we are about to download ... so zap the data
+                                        # the rest will also be zapped below but listing them all would be a lot of log data
+                                        logger.info("Changing downloadURL from %s to %s", path['downloadURL'], new_path['downloadURL'])
+                                        path['downloadURL'] = new_path['downloadURL']
+                                        
+                                    file_json['dirEntries'][new_n]['downloadURL'] = new_path['downloadURL']
+                                else:
+                                    # File name not the same - this is unexpected so log it and continue
+                                    logger.info("New fileinfo.json has filename of '%s' but old had '%s' so not trusting it", file_json['dirEntries'][new_n]['fileName'], new_path['fileName'])
+
+                                new_n += 1
+                                
+                        else:
+                            # Sizes not the same - this is unexpected so log it and continue
+                            logger.info("New fileinfo.json has %d entries but old had %d so not trusting it", new_sz, sz)
+
                 logger.info("Fetching file '%s' as '%s' (%d/%d)", name, new_name, n, sz)
-                with open(new_name, 'wb') as f:
-                    try:
-                        yga.download_file(path['downloadURL'], f)
-                    except:
-                        pass # Bad size exceptions can sometimes cause issues going from -f to -i.
-                set_mtime(new_name, path['createdTime'])
+                
+                try:
+                    content = yga.download_file(path['downloadURL'], None)
+                    
+                    if content is not None:
+                        with open(new_name, 'wb') as f:
+                            f.write(content)
+                        
+                        set_mtime(new_name, path['createdTime'])
+                except:
+                    pass # Bad size exceptions can sometimes cause issues going from -f to -i.
+                
 
         elif path['type'] == 1:
             # Directory
@@ -821,9 +878,23 @@ def file_keep(fname, type = ""):
     
     if os.path.exists(fname) is False:
         return False
+
+    # If very small then pretend it is not there so that we can try again
+    # as examples seen of 0 byte and 64-69 byte files as a result of errors from Yahoo
+    statinfo = os.stat(fname)
     
+    if statinfo.st_size < 70:
+        return False
+        
     logger.debug("File already present %s", type)
     return True
+
+
+def file_age(filepath):
+    """
+    Get the age of given file in seconds
+    """
+    return time.time() - os.path.getmtime(filepath)
 
 
 class Mkchdir:
@@ -909,7 +980,8 @@ if __name__ == "__main__":
     po.add_argument('-m', '--members', action='store_true',
                     help='Only archive members')
     po.add_argument('-o', '--overwrite', action='store_true',
-                    help='Overwrite existing files such as email and database records')
+                    help='Overwrite existing files such as email and database records. '
+                    'Note: Even without this enabled, overwrites will be attempted for very small files since they indicate a likely problem with an earlier run')
     po.add_argument('-na', '--noattachments', action='store_true',
                     help='Skip attachment downloading as part of topics and e-mails')
 
