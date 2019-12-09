@@ -36,7 +36,7 @@ else:
 # WARC metadata params
 
 WARC_META_PARAMS = OrderedDict([('software', 'yahoo-group-archiver'),
-                                ('version','20191208.04'),
+                                ('version','20191208.05'),
                                 ('format', 'WARC File Format 1.0'),
                                 ('command-arguments', ' '.join(sys.argv))
                                 ])
@@ -307,6 +307,9 @@ def process_surrounding_topics(startingTopicId,unretrievableTopicIds,unretrievab
         if prevTopicId in unretrievableTopicIds:
             logger.info("Reached known unretrievable topic ID %d",prevTopicId)
             break
+        if prevTopicId in retrievedTopicIds:
+            logger.info("Reached already retrieved topic ID %d",prevTopicId)
+            break
         topicResults = process_single_topic(prevTopicId,unretrievableTopicIds,unretrievableMessageIds,retrievedTopicIds,retrievedMessageIds,potentialMessageIds,expectedTopics,noAttachments)
         prevTopicId = topicResults["prevTopicId"]
         
@@ -315,6 +318,9 @@ def process_surrounding_topics(startingTopicId,unretrievableTopicIds,unretrievab
     while nextTopicId > 0:
         if nextTopicId in unretrievableTopicIds:
             logger.info("Reached known unretrievable topic ID %d",nextTopicId)
+            break
+        if nextTopicId in retrievedTopicIds:
+            logger.info("Reached already retrieved topic ID %d",nextTopicId)
             break
         topicResults = process_single_topic(nextTopicId,unretrievableTopicIds,unretrievableMessageIds,retrievedTopicIds,retrievedMessageIds,potentialMessageIds,expectedTopics,noAttachments)
         nextTopicId = topicResults["nextTopicId"]
