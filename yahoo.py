@@ -36,7 +36,7 @@ else:
 # WARC metadata params
 
 WARC_META_PARAMS = OrderedDict([('software', 'yahoo-group-archiver'),
-                                ('version','20191209.01'),
+                                ('version','20191209.02'),
                                 ('format', 'WARC File Format 1.0'),
                                 ('command-arguments', ' '.join(sys.argv))
                                 ])
@@ -720,12 +720,16 @@ def archive_calendar(yga):
             logger.error("Unrecoverable error getting events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
             return
 
-        calContent = json.loads(calContentRaw)
-        if calContent['events']['count'] > 0:
-            filename = jsonStart + "-" + jsonEnd + ".json"
-            with open(filename, 'wb') as f:
-                logger.info("Got %d event(s)", calContent['events']['count'])
-                json.dump(calContent, codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
+        try:
+            decodedCalContent = calContentRaw.decode('utf-8')
+            calContent = json.loads(decodedCalContent)
+            if calContent['events']['count'] > 0:
+                filename = jsonStart + "-" + jsonEnd + ".json"
+                with open(filename, 'wb') as f:
+                    logger.info("Got %d event(s)", calContent['events']['count'])
+                    json.dump(calContent, codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
+        except:
+            logger.error("Unrecoverable error processing events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
 
         archiveDate += datetime.timedelta(days=1000)
 
