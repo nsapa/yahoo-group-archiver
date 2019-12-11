@@ -170,7 +170,7 @@ class YahooGroupsAPI:
 
             for attempt in range(self.retries):
                 try:
-                    r = self.s.get(uri, params=opts, verify=VERIFY_HTTPS, allow_redirects=False, timeout=15)
+                    r = self.s.get(uri, params=opts, verify=VERIFY_HTTPS, allow_redirects=False, timeout=25)
 
                     code = r.status_code
                     # 307 authentication errors have frequently proven to be transient, but enough in a row might indicate something like an expired cookie.
