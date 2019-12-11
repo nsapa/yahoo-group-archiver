@@ -36,7 +36,7 @@ else:
 # WARC metadata params
 
 WARC_META_PARAMS = OrderedDict([('software', 'yahoo-group-archiver'),
-                                ('version','20191211.01'),
+                                ('version','20191211.02'),
                                 ('format', 'WARC File Format 1.0'),
                                 ('command-arguments', ' '.join(sys.argv))
                                 ])
@@ -691,7 +691,8 @@ def archive_calendar(yga):
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403 or e.response.status_code == 401:
             try:
-                tmpJson = json.loads(e.response.text)['calendarError']
+                encodedResponse = (e.response.text).encode('utf-8')
+                tmpJson = json.loads(encodedResponse)['calendarError']
             except:
                 logger.exception("ERROR: Couldn't load wssid exception to get calendarError.")
                 return
@@ -712,24 +713,32 @@ def archive_calendar(yga):
         jsonEnd = (archiveDate + datetime.timedelta(days=1000)).strftime("%Y%m%d")
         calURL = "%s/users/%s/calendars/events/?format=json&dtstart=%s&dtend=%s&wssid=%s" % \
             (api_root, entityId, jsonStart, jsonEnd, wssid)
-
-        try:
-            logger.info("Trying to get events between %s and %s", jsonStart, jsonEnd)
-            calContentRaw = yga.download_file(calURL)
-        except requests.exceptions.HTTPError:
-            logger.error("Unrecoverable error getting events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
-            return
-
-        try:
-            decodedCalContent = calContentRaw.decode('utf-8')
-            calContent = json.loads(decodedCalContent)
-            if calContent['events']['count'] > 0:
-                filename = jsonStart + "-" + jsonEnd + ".json"
-                with open(filename, 'wb') as f:
-                    logger.info("Got %d event(s)", calContent['events']['count'])
-                    json.dump(calContent, codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
-        except:
-            logger.error("Unrecoverable error processing events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
+                        
+        gotCalContent = False
+        attemptNum = 0
+        while (attemptNum < 5):
+            try:
+                logger.info("Trying to get events between %s and %s", jsonStart, jsonEnd)
+                calContentRaw = yga.download_file(calURL)
+                gotCalContent = True
+                break
+            except requests.exceptions.HTTPError:
+                logger.error("Error getting events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
+                attemptNum += 1
+        
+        if (gotCalContent is True):
+            try:
+                decodedCalContent = calContentRaw.decode('utf-8')
+                calContent = json.loads(decodedCalContent)
+                if calContent['events']['count'] > 0:
+                    filename = jsonStart + "-" + jsonEnd + ".json"
+                    with open(filename, 'wb') as f:
+                        logger.info("Got %d event(s)", calContent['events']['count'])
+                        json.dump(calContent, codecs.getwriter('utf-8')(f), ensure_ascii=False, indent=4)
+            except:
+                logger.error("Unrecoverable error processing events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
+        else:
+            logger.error("Giving up getting events between %s and %s: URL %s", jsonStart, jsonEnd, calURL)
 
         archiveDate += datetime.timedelta(days=1000)
 
