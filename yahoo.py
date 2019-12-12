@@ -36,7 +36,7 @@ else:
 # WARC metadata params
 
 WARC_META_PARAMS = OrderedDict([('software', 'yahoo-group-archiver'),
-                                ('version','20191211.02'),
+                                ('version','20191211.03'),
                                 ('format', 'WARC File Format 1.0'),
                                 ('command-arguments', ' '.join(sys.argv))
                                 ])
@@ -691,8 +691,7 @@ def archive_calendar(yga):
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403 or e.response.status_code == 401:
             try:
-                encodedResponse = (e.response.text).encode('utf-8')
-                tmpJson = json.loads(encodedResponse)['calendarError']
+                tmpJson = json.loads(e.response.text)['calendarError']
             except:
                 logger.exception("ERROR: Couldn't load wssid exception to get calendarError.")
                 return
