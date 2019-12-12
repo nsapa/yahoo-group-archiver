@@ -691,7 +691,8 @@ def archive_calendar(yga):
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403 or e.response.status_code == 401:
             try:
-                tmpJson = json.loads(e.response.text)['calendarError']
+                encodedResponse = (e.response.text).encode('utf-8')
+                tmpJson = json.loads(encodedResponse)['calendarError']
             except:
                 logger.exception("ERROR: Couldn't load wssid exception to get calendarError.")
                 return
